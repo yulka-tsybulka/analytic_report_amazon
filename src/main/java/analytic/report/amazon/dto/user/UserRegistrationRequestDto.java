@@ -19,5 +19,5 @@ public class UserRegistrationRequestDto {
     @Size(min = 4, max = 10, message = "Password must be at least 4 characters long")
     private String repeatPassword;
     @NotBlank
-    private String name;
+    private String userName;
 }
