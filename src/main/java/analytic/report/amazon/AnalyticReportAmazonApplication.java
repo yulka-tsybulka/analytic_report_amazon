@@ -6,8 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class AnalyticReportAmazonApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(AnalyticReportAmazonApplication.class, args);
-	}
-
+    public static void main(String[] args) {
+        SpringApplication.run(AnalyticReportAmazonApplication.class, args);
+    }
 }
