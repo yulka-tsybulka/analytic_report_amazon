@@ -5,7 +5,8 @@ import analytic.report.amazon.repository.ReportSpecificationRepository;
 import analytic.report.amazon.repository.SalesAndTrafficByAsinRepository;
 import analytic.report.amazon.repository.SalesAndTrafficByDateRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,17 +20,22 @@ public class DatabaseInitializer {
     private final ReportSpecificationRepository reportSpecificationRepository;
     private final SalesAndTrafficByDateRepository salesAndTrafficByDateRepository;
     private final SalesAndTrafficByAsinRepository salesAndTrafficByAsinRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @PostConstruct
     public void init() throws Exception {
         salesAndTrafficByDateRepository.deleteAll();
         salesAndTrafficByAsinRepository.deleteAll();
         reportSpecificationRepository.deleteAll();
-        try {
-            File jsonFile = new File(DATA_FILE_PATH);
-            log.info("Initializing database from file: {}", DATA_FILE_PATH);
-            ReportData reportData = objectMapper.readValue(jsonFile, ReportData.class);
+        try (InputStream is =
+                     getClass().getClassLoader().getResourceAsStream(DATA_FILE_PATH)) {
+
+            if (is == null) {
+                throw new FileNotFoundException("classpath:" + DATA_FILE_PATH);
+            }
+
+            ReportData reportData = objectMapper.readValue(is, ReportData.class);
+
             if (reportData.getReportSpecification() != null) {
                 reportSpecificationRepository.save(reportData.getReportSpecification());
                 log.info("Saved reportSpecification");

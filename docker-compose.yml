@@ -15,7 +15,7 @@ services:
       - my_network
 
   redis:
-    image: redis:latest
+    image: redis:7-alpine
     container_name: redis_container
     ports:
       - 6379:6379
@@ -30,8 +30,10 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATA_MONGODB_URI: mongodb://myAdmin:1234@mongo:27017/?authSource=admin
       SPRING_DATA_MONGODB_DATABASE: report-type-values-analytics
-      SPRING_CACHE_TYPE: redis
+      SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: 1234
+      SPRING_CACHE_TYPE: redis
       JWT_SECRET: qwertyuiop1234567890qwertyuiop1234567890qwertyuiop
     ports:
       - 8088:8080
