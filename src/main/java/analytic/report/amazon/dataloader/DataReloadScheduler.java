@@ -7,7 +7,8 @@ import analytic.report.amazon.repository.ReportSpecificationRepository;
 import analytic.report.amazon.repository.SalesAndTrafficByAsinRepository;
 import analytic.report.amazon.repository.SalesAndTrafficByDateRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,28 +18,35 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Component
 public class DataReloadScheduler {
-    private static final String DATA_FILE_PATH = "src/main/resources/data/test_report.json";
+    private static final String DATA_FILE_PATH = "data/test_report.json";
     private final ReportSpecificationRepository reportSpecificationRepository;
     private final SalesAndTrafficByDateRepository salesAndTrafficByDateRepository;
     private final SalesAndTrafficByAsinRepository salesAndTrafficByAsinRepository;
     private final ReportSpecificationMapper reportSpecificationMapper;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @Scheduled(fixedRate = 3600000)
     public void checkAndReloadData() {
-        try {
-            File jsonFile = new File(DATA_FILE_PATH);
-            log.info("Checking for updates in the file: {}", DATA_FILE_PATH);
-            ReportData newReportData = objectMapper.readValue(jsonFile, ReportData.class);
-            ReportSpecificationResponseDto currentSpecification = reportSpecificationMapper
+        try (InputStream is =
+                     getClass().getClassLoader().getResourceAsStream(DATA_FILE_PATH)) {
+
+            if (is == null) {
+                throw new FileNotFoundException("classpath:" + DATA_FILE_PATH);
+            }
+
+            ReportData newReportData = objectMapper.readValue(is, ReportData.class);
+
+            ReportSpecificationResponseDto currentSpec = reportSpecificationMapper
                     .toResponseDto(reportSpecificationRepository.findFirstByOrderByIdAsc());
-            ReportSpecificationResponseDto newSpecification = reportSpecificationMapper
+            ReportSpecificationResponseDto newSpec = reportSpecificationMapper
                     .toResponseDto(newReportData.getReportSpecification());
-            if (hasFileChanged(currentSpecification, newSpecification)) {
-                log.info("Data file has changed. Updating database...");
+
+            if (hasFileChanged(currentSpec, newSpec)) {
+                log.info("Data file changed → reloading DB…");
                 salesAndTrafficByDateRepository.deleteAll();
                 salesAndTrafficByAsinRepository.deleteAll();
                 reportSpecificationRepository.deleteAll();
+
                 reportSpecificationRepository.save(newReportData.getReportSpecification());
                 salesAndTrafficByDateRepository.saveAll(newReportData.getSalesAndTrafficByDate());
                 salesAndTrafficByAsinRepository.saveAll(newReportData.getSalesAndTrafficByAsin());
@@ -51,13 +59,12 @@ public class DataReloadScheduler {
         }
     }
 
-    private boolean hasFileChanged(ReportSpecificationResponseDto currentSpecification,
-                                   ReportSpecificationResponseDto newSpecification) {
-        if (currentSpecification == null) {
-            log.warn("No existing reportSpecification found. Treating file as new.");
+    private boolean hasFileChanged(ReportSpecificationResponseDto currentSpec,
+                                   ReportSpecificationResponseDto newSpec) {
+        if (currentSpec == null) {
             return true;
         }
-        return !currentSpecification.getDataStartTime().equals(newSpecification.getDataStartTime())
-                || !currentSpecification.getDataEndTime().equals(newSpecification.getDataEndTime());
+        return !currentSpec.getDataStartTime().equals(newSpec.getDataStartTime())
+                || !currentSpec.getDataEndTime().equals(newSpec.getDataEndTime());
     }
 }
